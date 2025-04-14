@@ -8,6 +8,11 @@ const port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 
+// Root route for confirming the server is up
+app.get('/', (req, res) => {
+    res.send('Paystack Webhook Server is running!');
+});
+
 let rewards = {}; // Temporary in-memory storage
 
 app.post('/paystack-webhook', async (req, res) => {
