@@ -3,7 +3,7 @@ const bodyParser = require('body-parser');
 const axios = require('axios');
 
 const app = express();
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || 'sk_test_09cfe71e3817b2d633226f5491691f20eccd57f3';
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;  // Use environment variable
 const port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
