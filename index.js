@@ -3,27 +3,26 @@ const bodyParser = require('body-parser');
 const axios = require('axios');
 
 const app = express();
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;  // Use environment variable
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 
-// Root route for confirming the server is up
 app.get('/', (req, res) => {
     res.send('Paystack Webhook Server is running!');
 });
 
-let rewards = {}; // Temporary in-memory storage
+let rewards = {};
 
 app.post('/paystack-webhook', async (req, res) => {
     const event = req.body;
-    console.log('Received Paystack webhook event:', event); // Log the incoming event
+    console.log('Received Paystack webhook event:', event);
 
     if (event.event === 'charge.success') {
         const reference = event.data.reference;
         const metadata = event.data.metadata || {};
-        const playerId = metadata.player_id || 'unknown';
-        const productId = metadata.product_id || 'unknown';
+        const playerId = metadata.player_id || 'unknown'; // Extract from metadata
+        const productId = metadata.product_id || 'unknown'; // Extract from metadata
 
         console.log(`Charge success for playerId: ${playerId}, productId: ${productId}, reference: ${reference}`);
 
@@ -34,7 +33,7 @@ app.post('/paystack-webhook', async (req, res) => {
                 }
             });
 
-            console.log('Payment verification response:', verifyRes.data); // Log verification response
+            console.log('Payment verification response:', verifyRes.data);
 
             if (verifyRes.data.data.status === 'success') {
                 rewards[playerId] = productId;
@@ -45,11 +44,11 @@ app.post('/paystack-webhook', async (req, res) => {
                 return res.status(400).send('Payment verification failed');
             }
         } catch (err) {
-            console.error('Error verifying payment:', err); // Log any error during verification
+            console.error('Error verifying payment:', err);
             return res.status(500).send('Error verifying payment');
         }
     } else {
-        console.log('Received non-charge.success event:', event.event); // Log if the event is not charge.success
+        console.log('Received non-charge.success event:', event.event);
     }
 
     res.status(200).send('Event received');
