@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
+const url = require('url'); // Import the 'url' module
 
 const app = express();
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
@@ -21,8 +22,18 @@ app.post('/paystack-webhook', async (req, res) => {
     if (event.event === 'charge.success') {
         const reference = event.data.reference;
         const metadata = event.data.metadata || {};
-        const playerId = metadata.player_id || 'unknown'; // Extract from metadata
-        const productId = metadata.product_id || 'unknown'; // Extract from metadata
+        let playerId = 'unknown';
+        let productId = 'unknown';
+
+        if (metadata.referrer) {
+            try {
+                const parsedUrl = url.parse(metadata.referrer, true);
+                playerId = parsedUrl.query.player_id || 'unknown';
+                productId = parsedUrl.query.product_id || 'unknown';
+            } catch (error) {
+                console.error('Error parsing referrer URL:', error);
+            }
+        }
 
         console.log(`Charge success for playerId: ${playerId}, productId: ${productId}, reference: ${reference}`);
 
