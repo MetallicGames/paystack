@@ -3,22 +3,19 @@ const bodyParser = require('body-parser');
 const axios = require('axios');
 const url = require('url');
 const WebSocket = require('ws');
-const http = require('http');
 
 const app = express();
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const port = process.env.PORT || 3000;
+const websocketPort = 8080; // Choose a different port for WebSockets
 
 app.use(bodyParser.json());
 
 // Store connected WebSocket clients with their playerId as the key
 const clients = {};
 
-// HTTP server created from Express app
-const server = http.createServer(app);
-
-// WebSocket server mounted on the same HTTP server under `/ws`
-const wss = new WebSocket.Server({ server, path: '/ws' });
+// Create a WebSocket Server
+const wss = new WebSocket.Server({ port: websocketPort });
 
 wss.on('connection', ws => {
     console.log('Client connected to WebSocket');
@@ -54,8 +51,7 @@ app.get('/', (req, res) => {
     res.send('Paystack Webhook and WebSocket Server is running!');
 });
 
-// In case a player connects later and needs to manually check reward
-let rewards = {};
+let rewards = {}; // You might not need this anymore if using WebSockets directly
 
 app.post('/paystack-webhook', async (req, res) => {
     const event = req.body;
@@ -90,14 +86,16 @@ app.post('/paystack-webhook', async (req, res) => {
 
             if (verifyRes.data.data.status === 'success') {
                 console.log(`Payment verified for playerId: ${playerId}, productId: ${productId}`);
+                // Send a WebSocket message to the specific client
                 if (clients[playerId] && clients[playerId].readyState === WebSocket.OPEN) {
                     clients[playerId].send(JSON.stringify({ type: 'payment_success', productId: productId }));
                     console.log(`WebSocket message sent to playerId: ${playerId}`);
                 } else {
                     console.log(`WebSocket not open for playerId: ${playerId}`);
-                    rewards[playerId] = productId; // store temporarily
+                    // Optionally, you could still store the reward temporarily if the client isn't connected
+                    // rewards[playerId] = productId;
                 }
-                return res.status(200).send('Payment verified and notification sent');
+                return res.status(200).send('Payment verified and notification sent (if client connected)');
             } else {
                 console.log(`Payment verification failed for reference: ${reference}`);
                 return res.status(400).send('Payment verification failed');
@@ -113,21 +111,20 @@ app.post('/paystack-webhook', async (req, res) => {
     res.status(200).send('Event received');
 });
 
+// You might still need this for cases where the client connects *after* the webhook
 app.get('/check-reward/:playerId', (req, res) => {
     const playerId = req.params.playerId;
     console.log(`Checking reward for playerId: ${playerId} (HTTP)`);
-
     if (rewards[playerId]) {
         const productId = rewards[playerId];
-        console.log(`Reward found for playerId: ${playerId}, granting productId: ${productId}`);
+        console.log(`Reward found for playerId: ${playerId} (HTTP), granting productId: ${productId}`);
         delete rewards[playerId];
         return res.json({ success: true, productId });
     }
-
     return res.json({ success: false });
 });
 
-// Start both Express and WebSocket servers on same port
-server.listen(port, () => {
-    console.log(`Express & WebSocket server listening on port ${port}`);
+app.listen(port, () => {
+    console.log(`Express server listening on port ${port}`);
+    console.log(`WebSocket server listening on port ${websocketPort}`);
 });
